@@ -46,3 +46,15 @@ def update_student(student_id: uuid.UUID, student_data: StudentCreate, db: Sessi
     db.commit()
     db.refresh(student)
     return student
+
+
+@app.delete("/students/{student_id}")
+def delete_student(student_id: uuid.UUID, db: Session = Depends(get_db)):
+    student = db.query(Student).filter(Student.id == student_id).first()
+
+    if student is None:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    db.delete(student)
+    db.commit()
+    return {"message": "Student deleted successfully"}
