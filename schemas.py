@@ -15,3 +15,13 @@ class StudentResponse(BaseModel):
 class StudentCreate(BaseModel):
     name: str
 
+
+class TeacherResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    create_at: datetime
+    updated_at: datetime
+
+
+class TeacherCreate(BaseModel):
+    name: str
