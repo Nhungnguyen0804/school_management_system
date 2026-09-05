@@ -4,6 +4,8 @@ from database import get_db
 from models import Student
 from schemas import StudentResponse
 from schemas import StudentCreate
+from fastapi import HTTPException
+import uuid
 
 app = FastAPI()
 
@@ -20,3 +22,14 @@ def create_student(student_data: StudentCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_student)
     return new_student
+
+@app.get("/students/{student_id}", response_model=StudentResponse)
+def get_student(student_id: uuid.UUID, db: Session = Depends(get_db)):
+    # dùng first ==> trả 1 object hoặc None nếu ko có
+    # .all() sẽ trả về tất quả hoặc rỗng []
+    student = db.query(Student).filter(Student.id == student_id).first()
+
+    if student is None:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    return student
