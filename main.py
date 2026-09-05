@@ -33,3 +33,16 @@ def get_student(student_id: uuid.UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Student not found")
 
     return student
+
+
+@app.put("/students/{student_id}", response_model=StudentResponse)
+def update_student(student_id: uuid.UUID, student_data: StudentCreate, db: Session = Depends(get_db)):
+    student = db.query(Student).filter(Student.id == student_id).first()
+
+    if student is None:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    student.name = student_data.name
+    db.commit()
+    db.refresh(student)
+    return student
