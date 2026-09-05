@@ -15,7 +15,12 @@ class Teacher(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now()) #Postgres tự set giá trị
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now()) # on update: mỗi lần row được UPDATE, Postgres tự cập nhật lại updated_at
 
-    enrollments: Mapped[list["Enrollment"]] = relationship(back_populates="student")
+
+    # foreign key trỏ đến bảng division. cột id 
+    division_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("divisions.id"), nullable=True)
+
+    #teacher --> division / khoa 
+    division: Mapped["Division"] = relationship(back_populates="division") # mqh 2 chieu 
 
 class Student(Base): #đại diện cho MỘT student
     __tablename__ = "students"
@@ -26,8 +31,10 @@ class Student(Base): #đại diện cho MỘT student
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
-    teach: Mapped["Teach"] = relationship(back_populates="teacher")
-    
+    # student --> teach
+    teacher: Mapped["Teach"] = relationship(back_populates="teacher")
+    enrollments: Mapped[list["Enrollment"]] = relationship(back_populates="student")
+
 class Class(Base):
     __tablename__ = "classes"
 
@@ -57,6 +64,7 @@ class Enrollment(Base):
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
     # relationship() cho phép: enrollment.student -> object Student thật
+    # Enrollment --> Student
     student: Mapped["Student"] = relationship(back_populates="enrollments")
     class_: Mapped["Class"] = relationship(back_populates="enrollments")
 
@@ -75,3 +83,28 @@ class Teach(Base):
 
     teacher: Mapped["Teacher"] = relationship(back_populates="teach")
     class_: Mapped["Class"] = relationship(back_populates="teach")
+
+
+class Division(Base):
+    __tablename__ = "divisions" # khoa/ bộ môn
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+
+    # thuoc tính này chứa teacher, ko phải division chính nó 
+    # 1 division - n teacher ==> list[teacher] , ko phải 1 obj đơn 
+    teacher: Mapped[list["Teacher"]] = relationship(back_populates="teachers")
+
+
+
+
+
+'''
+Mỗi cặp relationship() phải khớp như "2 đầu dây":
+A.field_x  = relationship(back_populates="field_y")
+B.field_y  = relationship(back_populates="field_x")
+
+'''
