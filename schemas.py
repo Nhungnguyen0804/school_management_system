@@ -25,3 +25,13 @@ class TeacherResponse(BaseModel):
 
 class TeacherCreate(BaseModel):
     name: str
+
+
+class ClassResponse(BaseModel):
+    id : uuid.UUID
+    name: str
+    create_at : datetime
+    update_at : datetime
+
+class ClassCreate(BaseModel):
+    name: str 

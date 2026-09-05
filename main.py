@@ -3,8 +3,8 @@ from ctypes.wintypes import HPALETTE
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Student, Teacher
-from schemas import StudentResponse,StudentCreate, TeacherCreate, TeacherResponse
+from models import Student, Teacher, Class
+from schemas import StudentResponse,StudentCreate, TeacherCreate, TeacherResponse, ClassCreate, ClassResponse
 from fastapi import HTTPException
 import uuid
 
@@ -21,7 +21,12 @@ def get_teachers(db: Session = Depends(get_db)):
     teachers = db.query(Teacher).all() # lấy danh sách hoặc rỗng []
     return teachers
 
+@app.get('/classes' , response_model = list[ClassResponse])
+def get_classes(db: Session = Depends(get_db)):
+    classes = db.query(Class).all()
+    return classes
 
+# POST ======================================================================
 @app.post("/students", response_model=StudentResponse)
 def create_student(student_data: StudentCreate, db: Session = Depends(get_db)):
     new_student = Student(name=student_data.name)
@@ -37,6 +42,14 @@ def create_teacher(teacher_data : TeacherCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_teacher)
     return new_teacher
+
+@app.post('/classes', response_model = ClassResponse)
+def create_class(class_data : ClassCreate, db: Session = Depends(get_db)):
+    new_class = Class(name = class_data.name)
+    db.add(new_class)
+    db.commit()
+    db.refresh(new_class)
+    return new_class
 
 
 @app.get("/students/{student_id}", response_model=StudentResponse)
@@ -55,6 +68,12 @@ def get_teacher(teacher_id: uuid.UUID, db: Session = Depends(get_db)):
     teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
     if teacher is None: raise HTTPException(status_code = 404, detail = 'teacher not found')
     return teacher
+
+@app.get('/classes/{class_id}', response_model = ClassResponse)
+def get_class(class_id: uuid.UUID, db: Session = Depends(get_db)):
+    current_class = db.query(Class).filter(Class.id == class_id).first()
+    if current_class is None: raise HTTPException(status_code = 404, detail = 'class not found')
+    return current_class
 
 @app.put("/students/{student_id}", response_model=StudentResponse)
 def update_student(student_id: uuid.UUID, student_data: StudentCreate, db: Session = Depends(get_db)):
@@ -78,6 +97,16 @@ def update_teacher(teacher_id: uuid.UUID , teacher_data : TeacherCreate , db: Se
     db.refresh(teacher)
     return teacher
 
+@app.put('/classes/{class_id}' , response_model= ClassResponse)
+def update_class(class_id: uuid.UUID , class_data : TeacherCreate , db: Session = Depends(get_db)):
+    current_class = db.query(Class).filter(Class.id == class_id).first()
+    if current_class is None: raise HTTPException(status_code = 404, detail = 'class not found')
+    # update
+    current_class.name = class_data.name
+    db.commit()
+    db.refresh(current_class)
+    return current_class
+
 @app.delete("/students/{student_id}")
 def delete_student(student_id: uuid.UUID, db: Session = Depends(get_db)):
     student = db.query(Student).filter(Student.id == student_id).first()
@@ -96,3 +125,12 @@ def delete_teacher(teacher_id : uuid.UUID , db: Session = Depends(get_db)):
     db.delete(teacher)
     db.commit()
     return {'message': 'teacher deleted successfully'}
+
+
+@app.delete('/classes/{class_id}')
+def delete_class(class_id : uuid.UUID , db: Session = Depends(get_db)):
+    current_class = db.query(Class).filter(Class.id == class_id ).first()
+    if current_class is None: raise HTTPException(status_code  = 404, detail = 'class not found ')
+    db.delete(current_class)
+    db.commit()
+    return {'message': 'class deleted successfully'}
