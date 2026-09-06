@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session ,joinedload
 from database import get_db
 from models import Student, Teacher, Class ,Enrollment ,Teach , Division
 from schemas import StudentResponse,StudentCreate, TeacherCreate, TeacherResponse, ClassCreate, ClassResponse, EnrollmentResponse , EnrollmentCreate ,TeachCreate ,TeachResponse, DivisionCreate, DivisionResponse
@@ -171,6 +171,7 @@ def delete_division(division_id : uuid.UUID , db: Session = Depends(get_db)):
     return {'message': 'division deleted successfully'}
 
 # business logic phức tạp hơn
+# CREATE ENROLLMENT
 @app.post("/enrollments", response_model= EnrollmentResponse)
 def create_enrollment(data: EnrollmentCreate, db: Session = Depends(get_db)):
     # Check 1: student có tồn tại không
@@ -198,6 +199,49 @@ def create_enrollment(data: EnrollmentCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_enrollment)
     return new_enrollment
+
+# GET ENROLLMENT 
+# GET /students/{student_id}/classes
+# Lấy tất cả lớp mà Học sinh X đã đăng ký
+# hs X đăng ký những lớp nào ? (dựa vào hs X )
+@app.get("/students/{student_id}/classes")
+def get_classes_by_student(student_id: uuid.UUID, db: Session = Depends(get_db)):
+    # 1. Kiểm tra học sinh có tồn tại không
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    # 2. Query bảng Enrollments và eager load (joinedload) thông tin Class
+    enrollments = (
+        db.query(Enrollment)
+        .options(joinedload(Enrollment.class_)) # class_ là tôi đặt tên , đại diện Lớp học  (phân biệt với class python nên mới có _ thôi)
+        .filter(Enrollment.student_id == student_id)
+        .all()
+    )
+
+    # 3. Trả về danh sách các Class
+    return [e.class_ for e in enrollments]
+
+# Lấy tất cả học sinh thuộc Lớp Y
+# dựa theo lớp nào (là lớp Y)
+# GET /classes/{class_id}/students
+@app.get("/classes/{class_id}/students")
+def get_students_by_class(class_id: uuid.UUID, db: Session = Depends(get_db)):
+    # 1. Kiểm tra lớp học có tồn tại không
+    class_obj = db.query(Class).filter(Class.id == class_id).first()
+    if not class_obj:
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    # 2. Query bảng Enrollments và eager load (joinedload) thông tin Student
+    enrollments = (
+        db.query(Enrollment)
+        .options(joinedload(Enrollment.student))
+        .filter(Enrollment.class_id == class_id)
+        .all()
+    )
+
+    # 3. Trả về danh sách các Student
+    return [e.student for e in enrollments]
 
 @app.post("/teach", response_model=TeachResponse)
 def assign_teacher(data: TeachCreate, db: Session = Depends(get_db)):
