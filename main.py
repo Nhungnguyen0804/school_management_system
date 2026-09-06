@@ -2,8 +2,8 @@ from fastapi import FastAPI, Depends ,status
 from sqlalchemy.orm import Session ,joinedload
 from database import get_db
 from models import Student, Teacher, Class ,Enrollment ,Teach , Division
-from constants import EnrollmentStatus
-from schemas import StudentResponse,StudentCreate, TeacherCreate, TeacherResponse, ClassCreate, ClassResponse, EnrollmentResponse , EnrollmentCreate ,TeachCreate ,TeachResponse, DivisionCreate, DivisionResponse
+from constants import EnrollmentStatus ,TeachStatus
+from schemas import ChangeTeacherRequest, StudentResponse,StudentCreate, TeacherCreate, TeacherResponse, ClassCreate, ClassResponse, EnrollmentResponse , EnrollmentCreate ,TeachCreate ,TeachResponse, DivisionCreate, DivisionResponse
 from fastapi import HTTPException
 import uuid
 
@@ -216,7 +216,8 @@ def get_classes_by_student(student_id: uuid.UUID, db: Session = Depends(get_db))
     enrollments = (
         db.query(Enrollment)
         .options(joinedload(Enrollment.class_)) # class_ là tôi đặt tên , đại diện Lớp học  (phân biệt với class python nên mới có _ thôi)
-        .filter(Enrollment.student_id == student_id)
+        .filter(Enrollment.student_id == student_id ,
+                Enrollment.status == EnrollmentStatus.ACTIVE)
         .all()
     )
 
@@ -237,7 +238,8 @@ def get_students_by_class(class_id: uuid.UUID, db: Session = Depends(get_db)):
     enrollments = (
         db.query(Enrollment)
         .options(joinedload(Enrollment.student))
-        .filter(Enrollment.class_id == class_id)
+        .filter(Enrollment.class_id == class_id ,
+                Enrollment.status == EnrollmentStatus.ACTIVE)
         .all()
     )
 
@@ -247,8 +249,9 @@ def get_students_by_class(class_id: uuid.UUID, db: Session = Depends(get_db)):
 
 # Update delete khi học sinh hủy đăng ký môn học
 # PATCH /enrollments/cancel
+# withdraw ===> là soft delete (thực tế ưu tiên hơn vì fallback được)
 @app.patch("/enrollments/cancel", response_model=EnrollmentResponse)
-def withdraw_enrollment(
+def withdraw_enrollment( # withdraw = rút, rút khỏi, hủy ---> đăng ký môn học
     student_id: uuid.UUID,
     class_id: uuid.UUID,
     db: Session = Depends(get_db)
@@ -273,18 +276,18 @@ def withdraw_enrollment(
     db.refresh(enrollment)
     return enrollment
 
-
+# TEACH : phân công giảng dạy
 @app.post("/teach", response_model=TeachResponse)
 def assign_teacher(data: TeachCreate, db: Session = Depends(get_db)):
     # Check 1: teacher có tồn tại không
     teacher = db.query(Teacher).filter(Teacher.id == data.teacher_id).first()
     if teacher is None:
-        raise HTTPException(status_code=404, detail="Teacher not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Teacher not found")
 
     # Check 2: class có tồn tại không
     class_obj = db.query(Class).filter(Class.id == data.class_id).first()
     if class_obj is None:
-        raise HTTPException(status_code=404, detail="Class not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Class not found")
 
     # Check 3: class này đã có teacher chưa (chỉ check class_id, KHÔNG check cặp)
     # KHÔNG check cặp => quy định mqh 1-1 : 1 lớp - 1 giáo viên
@@ -296,12 +299,135 @@ def assign_teacher(data: TeachCreate, db: Session = Depends(get_db)):
     # nếu lớp X có gv A dạy => (lớp X, gv A) tồn tại
     # nhưng lại cho lớp X có thêm gv B dạy => (lớp X , gv B) chưa tồn tại ==> thêm gv B dù đã có gv A rồi => sai
     # 1 lớp có nhiều giáo viên (là ko đúng) ==> quan hệ N-N
-    existing = db.query(Teach).filter(Teach.class_id == data.class_id).first()
-    if existing is not None:
-        raise HTTPException(status_code=409, detail="This class already has a teacher")
 
+    # old
+    # existing = db.query(Teach).filter(Teach.class_id == data.class_id).first()
+    # if existing is not None:
+    #     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This class already has a teacher")
+
+    # new
+    # Check 3: Lớp này đã có giáo viên ĐANG DẠY (ACTIVE) chưa?
+    existing = db.query(Teach).filter(
+        Teach.class_id == data.class_id,
+        Teach.status == TeachStatus.ACTIVE
+    ).first()
+
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This class already has an active teacher"
+        )
     new_teach = Teach(teacher_id=data.teacher_id, class_id=data.class_id)
     db.add(new_teach)
     db.commit()
     db.refresh(new_teach)
     return new_teach
+
+# get /teachers / teacher_id / classes
+# 1 giáo viên dạy bao nhiêu lớp ? (quan hệ 1 - n)
+@app.get("/teachers/{teacher_id}/classes")
+def get_classes_by_teacher(teacher_id: uuid.UUID, db: Session = Depends(get_db)):
+    # 1. Kiểm tra teacher có tồn tại không
+    teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
+    if not teacher:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="teacher not found")
+
+    # 2. Query bảng Teacher và eager load (joinedload) thông tin Class
+    all_teach = (
+        db.query(Teach)
+        .options(joinedload(Teach.class_)) # models Teach có class_ , class_ là tôi đặt tên , đại diện Lớp học  (phân biệt với class python nên mới có _ thôi)
+        .filter(Teach.teacher_id == teacher_id ,
+                Teach.status == TeachStatus.ACTIVE)
+        .all()
+    )
+
+    # 3. Trả về danh sách các Class mà teacher id này phụ trách
+    return [e.class_ for e in all_teach]
+
+@app.patch("/teach/unassign", response_model=TeachResponse)
+def unassign_teacher(class_id: uuid.UUID, db: Session = Depends(get_db)):
+    # Tìm phân công đang ACTIVE của lớp này
+    teach = db.query(Teach).filter(
+        Teach.class_id == class_id,
+        Teach.status == TeachStatus.ACTIVE
+    ).first()
+
+    if not teach:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active teacher found for this class"
+        )
+
+    # Chuyển trạng thái sang CANCELLED
+    teach.status = TeachStatus.CANCELLED
+    db.commit()
+    db.refresh(teach)
+    return teach
+
+
+@app.patch("/teach/{class_id}/teacher", response_model=TeachResponse)
+def change_teacher(
+    class_id: uuid.UUID,
+    data: ChangeTeacherRequest,
+    db: Session = Depends(get_db)
+):
+    # 1. Kiểm tra Lớp X có tồn tại không
+    class_obj = db.query(Class).filter(Class.id == class_id).first()
+    if not class_obj:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Class not found")
+
+    # 2. Kiểm tra Giáo viên B có tồn tại không
+    new_teacher = db.query(Teacher).filter(Teacher.id == data.teacher_id).first()
+    if not new_teacher:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Teacher not found")
+
+    # 3. Tìm phân công ĐANG ACTIVE của lớp X
+    current_teach = db.query(Teach).filter(
+        Teach.class_id == class_id,
+        Teach.status == TeachStatus.ACTIVE
+    ).first()
+
+    if not current_teach:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active teacher found for this class"
+        )
+
+    if current_teach.teacher_id == data.teacher_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This teacher is already assigned to this class"
+        )
+
+    # 4. Hủy phân công cũ & Tạo phân công mới trong 1 Transaction
+    current_teach.status = TeachStatus.CANCELLED
+
+    new_teach = Teach(
+        teacher_id=data.teacher_id,
+        class_id=class_id,
+        status=TeachStatus.ACTIVE
+    )
+    db.add(new_teach)
+
+    db.commit()
+    db.refresh(new_teach)
+    return new_teach
+
+
+@app.get("/classes/{class_id}/teacher", response_model=TeacherResponse)
+def get_teacher_by_class(class_id: uuid.UUID, db: Session = Depends(get_db)):
+    class_obj = db.query(Class).filter(Class.id == class_id).first()
+    if not class_obj:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Class not found")
+
+    teach = db.query(Teach).options(joinedload(Teach.teacher)).filter(
+        Teach.class_id == class_id,
+        Teach.status == TeachStatus.ACTIVE
+    ).first()
+
+    if not teach:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active teacher assigned to this class")
+
+    return teach.teacher
+
+

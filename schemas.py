@@ -72,5 +72,8 @@ class TeachResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class ChangeTeacherRequest(BaseModel):
+    teacher_id: uuid.UUID
+    
 # -------------------------------------------------------------------------------------------
 

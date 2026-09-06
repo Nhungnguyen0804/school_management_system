@@ -1,12 +1,12 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, ForeignKey
+from sqlalchemy import Index, String, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from database import Base
 from sqlalchemy import Enum as SQLEnum
-from constants import EnrollmentStatus
+from constants import EnrollmentStatus ,TeachStatus
 class Teacher(Base):
     __tablename__ = "teachers" # tên table thật sự trong Postgres , dùng để back_populates
 
@@ -85,14 +85,29 @@ class Teach(Base):
 
     teacher_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("teachers.id"), nullable=False)
     # unique=True vì rule: 1 class chỉ có 1 teacher -> mỗi class_id chỉ xuất hiện 1 lần trong bảng này
-    class_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("classes.id"), unique=True, nullable=False)
+    # 1. BỎ unique=True Ở ĐÂY
+    class_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("classes.id"), nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
+    status: Mapped[TeachStatus] = mapped_column(
+            SQLEnum(TeachStatus ,native_enum=False),
+            default=TeachStatus.ACTIVE,
+            nullable=False
+        )
     teacher: Mapped["Teacher"] = relationship(back_populates="teach")
     class_: Mapped["Class"] = relationship(back_populates="teach")
 
+    # 2. THÊM RULE NÀY: Chỉ cấm trùng class_id đối với những dòng có status == ACTIVE
+    __table_args__ = (
+        Index(
+            "uq_teach_active_class",
+            "class_id",
+            unique=True,
+            postgresql_where=(status == TeachStatus.ACTIVE)
+        ),
+    )
 
 class Division(Base):
     __tablename__ = "divisions" # khoa/ bộ môn
