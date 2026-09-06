@@ -430,4 +430,3 @@ def get_teacher_by_class(class_id: uuid.UUID, db: Session = Depends(get_db)):
 
     return teach.teacher
 
-
