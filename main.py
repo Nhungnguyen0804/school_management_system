@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Student, Teacher, Class ,Enrollment
-from schemas import StudentResponse,StudentCreate, TeacherCreate, TeacherResponse, ClassCreate, ClassResponse, EnrollmentResponse , EnrollmentCreate
+from models import Student, Teacher, Class ,Enrollment ,Teach
+from schemas import StudentResponse,StudentCreate, TeacherCreate, TeacherResponse, ClassCreate, ClassResponse, EnrollmentResponse , EnrollmentCreate ,TeachCreate ,TeachResponse
 from fastapi import HTTPException
 import uuid
 
@@ -161,3 +161,35 @@ def create_enrollment(data: EnrollmentCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_enrollment)
     return new_enrollment
+
+@app.post("/teach", response_model=TeachResponse)
+def assign_teacher(data: TeachCreate, db: Session = Depends(get_db)):
+    # Check 1: teacher có tồn tại không
+    teacher = db.query(Teacher).filter(Teacher.id == data.teacher_id).first()
+    if teacher is None:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+
+    # Check 2: class có tồn tại không
+    class_obj = db.query(Class).filter(Class.id == data.class_id).first()
+    if class_obj is None:
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    # Check 3: class này đã có teacher chưa (chỉ check class_id, KHÔNG check cặp)
+    # KHÔNG check cặp => quy định mqh 1-1 : 1 lớp - 1 giáo viên
+    # 1 lớp môn DSA chỉ cần 1 giáo viên phụ trách
+
+    # lớp class_id = A đã có trong bảng Teach chưa ? ( có giáo viên phụ trách chưa ? )
+
+    # ko check cả cặp (teacher id, class id) vì:
+    # nếu lớp X có gv A dạy => (lớp X, gv A) tồn tại
+    # nhưng lại cho lớp X có thêm gv B dạy => (lớp X , gv B) chưa tồn tại ==> thêm gv B dù đã có gv A rồi => sai
+    # 1 lớp có nhiều giáo viên (là ko đúng) ==> quan hệ N-N
+    existing = db.query(Teach).filter(Teach.class_id == data.class_id).first()
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="This class already has a teacher")
+
+    new_teach = Teach(teacher_id=data.teacher_id, class_id=data.class_id)
+    db.add(new_teach)
+    db.commit()
+    db.refresh(new_teach)
+    return new_teach

@@ -48,3 +48,16 @@ class EnrollmentResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class TeachCreate(BaseModel):
+    teacher_id: uuid.UUID
+    class_id: uuid.UUID
+
+class TeachResponse(BaseModel):
+    id: uuid.UUID
+    teacher_id: uuid.UUID
+    class_id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

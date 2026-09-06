@@ -7,7 +7,7 @@ from sqlalchemy.sql import func
 from database import Base
 
 class Teacher(Base):
-    __tablename__ = "teachers" # tên table thật sự trong Postgres
+    __tablename__ = "teachers" # tên table thật sự trong Postgres , dùng để back_populates
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4) #Python tự sinh UUID khi tạo object, trước khi insert.
     name: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -16,11 +16,11 @@ class Teacher(Base):
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now()) # on update: mỗi lần row được UPDATE, Postgres tự cập nhật lại updated_at
 
 
-    # foreign key trỏ đến bảng division. cột id 
+    # foreign key trỏ đến bảng division. cột id
     division_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("divisions.id"), nullable=True)
 
-    #teacher --> division / khoa 
-    division: Mapped["Division"] = relationship(back_populates="division") # mqh 2 chieu 
+    #teacher --> division / khoa
+    division: Mapped["Division"] = relationship(back_populates="division") # mqh 2 chieu
 
 class Student(Base): #đại diện cho MỘT student
     __tablename__ = "students"
@@ -94,8 +94,8 @@ class Division(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
-    # thuoc tính này chứa teacher, ko phải division chính nó 
-    # 1 division - n teacher ==> list[teacher] , ko phải 1 obj đơn 
+    # thuoc tính này chứa teacher, ko phải division chính nó
+    # 1 division - n teacher ==> list[teacher] , ko phải 1 obj đơn
     teacher: Mapped[list["Teacher"]] = relationship(back_populates="teachers")
 
 
