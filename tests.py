@@ -25,3 +25,4 @@ Table teachers: id (UUID), name (VARCHAR(100)), created_at (TIMESTAMP), updated_
 --- Query test ---
 []
 '''
+
