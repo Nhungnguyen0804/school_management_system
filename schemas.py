@@ -34,4 +34,17 @@ class ClassResponse(BaseModel):
     update_at : datetime
 
 class ClassCreate(BaseModel):
-    name: str 
+    name: str
+
+class EnrollmentCreate(BaseModel):
+    student_id: uuid.UUID
+    class_id: uuid.UUID
+
+class EnrollmentResponse(BaseModel):
+    id: uuid.UUID
+    student_id: uuid.UUID
+    class_id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

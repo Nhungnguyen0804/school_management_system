@@ -1,15 +1,13 @@
-from ctypes.wintypes import HPALETTE
-
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Student, Teacher, Class
-from schemas import StudentResponse,StudentCreate, TeacherCreate, TeacherResponse, ClassCreate, ClassResponse
+from models import Student, Teacher, Class ,Enrollment
+from schemas import StudentResponse,StudentCreate, TeacherCreate, TeacherResponse, ClassCreate, ClassResponse, EnrollmentResponse , EnrollmentCreate
 from fastapi import HTTPException
 import uuid
 
 app = FastAPI()
-
+# route
 
 @app.get("/students", response_model=list[StudentResponse])
 def get_students(db: Session = Depends(get_db)):
@@ -134,3 +132,32 @@ def delete_class(class_id : uuid.UUID , db: Session = Depends(get_db)):
     db.delete(current_class)
     db.commit()
     return {'message': 'class deleted successfully'}
+
+
+@app.post("/enrollments", response_model= EnrollmentResponse)
+def create_enrollment(data: EnrollmentCreate, db: Session = Depends(get_db)):
+    # Check 1: student có tồn tại không
+    student = db.query(Student).filter(Student.id == data.student_id).first()
+    if student is None:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    # Check 2: class có tồn tại không
+    class_obj = db.query(Class).filter(Class.id == data.class_id).first()
+    if class_obj is None:
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    # Check 3: đã đăng ký chưa
+    existing = db.query(Enrollment).filter(
+        Enrollment.student_id == data.student_id,
+        Enrollment.class_id == data.class_id
+    ).first()
+    if existing is not None: # student này đã đăng ký rồi
+        raise HTTPException(status_code=409, detail="Student already enrolled in this class")
+
+    # Qua hết 3 check mới thực sự tạo
+    # tham gia (đăng ký học) <--- student nào + lớp nào
+    new_enrollment = Enrollment(student_id=data.student_id, class_id=data.class_id)
+    db.add(new_enrollment)
+    db.commit()
+    db.refresh(new_enrollment)
+    return new_enrollment
