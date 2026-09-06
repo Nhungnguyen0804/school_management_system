@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends ,status
 from sqlalchemy.orm import Session ,joinedload
 from database import get_db
 from models import Student, Teacher, Class ,Enrollment ,Teach , Division
+from constants import EnrollmentStatus
 from schemas import StudentResponse,StudentCreate, TeacherCreate, TeacherResponse, ClassCreate, ClassResponse, EnrollmentResponse , EnrollmentCreate ,TeachCreate ,TeachResponse, DivisionCreate, DivisionResponse
 from fastapi import HTTPException
 import uuid
@@ -68,26 +69,26 @@ def get_student(student_id: uuid.UUID, db: Session = Depends(get_db)):
     student = db.query(Student).filter(Student.id == student_id).first()
 
     if student is None:
-        raise HTTPException(status_code=404, detail="Student not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
 
     return student
 
 @app.get('/teachers/{teacher_id}', response_model = TeacherResponse)
 def get_teacher(teacher_id: uuid.UUID, db: Session = Depends(get_db)):
     teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
-    if teacher is None: raise HTTPException(status_code = 404, detail = 'teacher not found')
+    if teacher is None: raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'teacher not found')
     return teacher
 
 @app.get('/classes/{class_id}', response_model = ClassResponse)
 def get_class(class_id: uuid.UUID, db: Session = Depends(get_db)):
     current_class = db.query(Class).filter(Class.id == class_id).first()
-    if current_class is None: raise HTTPException(status_code = 404, detail = 'class not found')
+    if current_class is None: raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'class not found')
     return current_class
 
 @app.get('/divisions/{division_id}', response_model = DivisionResponse)
 def get_division(division_id: uuid.UUID, db: Session = Depends(get_db)):
     division = db.query(Division).filter(Division.id == division_id).first()
-    if division is None: raise HTTPException(status_code = 404, detail = 'division not found')
+    if division is None: raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'division not found')
     return division
 
 # PUT = update ========================================================================================
@@ -96,7 +97,7 @@ def update_student(student_id: uuid.UUID, student_data: StudentCreate, db: Sessi
     student = db.query(Student).filter(Student.id == student_id).first()
 
     if student is None:
-        raise HTTPException(status_code=404, detail="Student not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
 
     student.name = student_data.name
     db.commit()
@@ -106,7 +107,7 @@ def update_student(student_id: uuid.UUID, student_data: StudentCreate, db: Sessi
 @app.put('/teachers/{teacher_id}' , response_model= TeacherResponse)
 def update_teacher(teacher_id: uuid.UUID , teacher_data : TeacherCreate , db: Session = Depends(get_db)):
     teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
-    if teacher is None: raise HTTPException(status_code = 404, detail = 'teacher not found')
+    if teacher is None: raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'teacher not found')
     # update
     teacher.name = teacher_data.name
     db.commit()
@@ -116,7 +117,7 @@ def update_teacher(teacher_id: uuid.UUID , teacher_data : TeacherCreate , db: Se
 @app.put('/classes/{class_id}' , response_model= ClassResponse)
 def update_class(class_id: uuid.UUID , class_data : TeacherCreate , db: Session = Depends(get_db)):
     current_class = db.query(Class).filter(Class.id == class_id).first()
-    if current_class is None: raise HTTPException(status_code = 404, detail = 'class not found')
+    if current_class is None: raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'class not found')
     # update
     current_class.name = class_data.name
     db.commit()
@@ -126,7 +127,7 @@ def update_class(class_id: uuid.UUID , class_data : TeacherCreate , db: Session 
 @app.put('/divisions/{division_id}' , response_model= DivisionResponse)
 def update_division(division_id: uuid.UUID , division_data : DivisionCreate , db: Session = Depends(get_db)):
     division = db.query(Division).filter(Division.id == division_id).first()
-    if division is None: raise HTTPException(status_code = 404, detail = 'division not found')
+    if division is None: raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'division not found')
     # update
     division.name = division_data.name
     db.commit()
@@ -148,7 +149,7 @@ def delete_student(student_id: uuid.UUID, db: Session = Depends(get_db)):
 @app.delete('/teachers/{teacher_id}')
 def delete_teacher(teacher_id : uuid.UUID , db: Session = Depends(get_db)):
     teacher = db.query(Teacher).filter(Teacher.id == teacher_id ).first()
-    if teacher is None: raise HTTPException(status_code  = 404, detail = 'teacher not found ')
+    if teacher is None: raise HTTPException(status_code  = status.HTTP_404_NOT_FOUND, detail = 'teacher not found ')
     db.delete(teacher)
     db.commit()
     return {'message': 'teacher deleted successfully'}
@@ -157,7 +158,7 @@ def delete_teacher(teacher_id : uuid.UUID , db: Session = Depends(get_db)):
 @app.delete('/classes/{class_id}')
 def delete_class(class_id : uuid.UUID , db: Session = Depends(get_db)):
     current_class = db.query(Class).filter(Class.id == class_id ).first()
-    if current_class is None: raise HTTPException(status_code  = 404, detail = 'class not found ')
+    if current_class is None: raise HTTPException(status_code  = status.HTTP_404_NOT_FOUND, detail = 'class not found ')
     db.delete(current_class)
     db.commit()
     return {'message': 'class deleted successfully'}
@@ -165,7 +166,7 @@ def delete_class(class_id : uuid.UUID , db: Session = Depends(get_db)):
 @app.delete('/divisions/{division_id}')
 def delete_division(division_id : uuid.UUID , db: Session = Depends(get_db)):
     division = db.query(Division).filter(Division.id == division_id ).first()
-    if division is None: raise HTTPException(status_code  = 404, detail = 'division not found ')
+    if division is None: raise HTTPException(status_code  = status.HTTP_404_NOT_FOUND, detail = 'division not found ')
     db.delete(division)
     db.commit()
     return {'message': 'division deleted successfully'}
@@ -200,7 +201,7 @@ def create_enrollment(data: EnrollmentCreate, db: Session = Depends(get_db)):
     db.refresh(new_enrollment)
     return new_enrollment
 
-# GET ENROLLMENT 
+# GET ENROLLMENT
 # GET /students/{student_id}/classes
 # Lấy tất cả lớp mà Học sinh X đã đăng ký
 # hs X đăng ký những lớp nào ? (dựa vào hs X )
@@ -242,6 +243,36 @@ def get_students_by_class(class_id: uuid.UUID, db: Session = Depends(get_db)):
 
     # 3. Trả về danh sách các Student
     return [e.student for e in enrollments]
+
+
+# Update delete khi học sinh hủy đăng ký môn học
+# PATCH /enrollments/cancel
+@app.patch("/enrollments/cancel", response_model=EnrollmentResponse)
+def withdraw_enrollment(
+    student_id: uuid.UUID,
+    class_id: uuid.UUID,
+    db: Session = Depends(get_db)
+):
+    # 1. Tìm bản ghi đang hoạt động (ACTIVE)
+    enrollment = db.query(Enrollment).filter(
+        Enrollment.student_id == student_id,
+        Enrollment.class_id == class_id,
+        Enrollment.status == EnrollmentStatus.ACTIVE
+    ).first()
+
+    if not enrollment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Active enrollment not found for this student and class"
+        )
+
+    # 2. Đổi trạng thái thành CANCELLED
+    enrollment.status = EnrollmentStatus.CANCELLED
+
+    db.commit()
+    db.refresh(enrollment)
+    return enrollment
+
 
 @app.post("/teach", response_model=TeachResponse)
 def assign_teacher(data: TeachCreate, db: Session = Depends(get_db)):

@@ -5,7 +5,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from database import Base
-
+from sqlalchemy import Enum as SQLEnum
+from constants import EnrollmentStatus
 class Teacher(Base):
     __tablename__ = "teachers" # tên table thật sự trong Postgres , dùng để back_populates
 
@@ -50,6 +51,8 @@ class Class(Base):
     teach: Mapped["Teach"] = relationship(back_populates="class_")
 
 
+
+
 class Enrollment(Base):
     __tablename__ = "enrollments"
 
@@ -63,6 +66,12 @@ class Enrollment(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
+    # Thêm cột trạng thái (mặc định là ACTIVE khi mới đăng ký)
+    status: Mapped[EnrollmentStatus] = mapped_column(
+        SQLEnum(EnrollmentStatus ,native_enum=False), # native_enum=False: Lưu dạng VARCHAR thay vì Postgres ENUM type ( vì Postgres ENUM type muốn update thì làm phức tạp hơn, Alembic thường gặp lỗi hoặc nhận diện sai sự thay đổi của Postgres ENUM , khó tương thích nếu muốn chuyển db)
+        default=EnrollmentStatus.ACTIVE,
+        nullable=False
+    )
     # relationship() cho phép: enrollment.student -> object Student thật
     # Enrollment --> Student
     student: Mapped["Student"] = relationship(back_populates="enrollments")
