@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Student, Teacher, Class ,Enrollment ,Teach
-from schemas import StudentResponse,StudentCreate, TeacherCreate, TeacherResponse, ClassCreate, ClassResponse, EnrollmentResponse , EnrollmentCreate ,TeachCreate ,TeachResponse
+from models import Student, Teacher, Class ,Enrollment ,Teach , Division
+from schemas import StudentResponse,StudentCreate, TeacherCreate, TeacherResponse, ClassCreate, ClassResponse, EnrollmentResponse , EnrollmentCreate ,TeachCreate ,TeachResponse, DivisionCreate, DivisionResponse
 from fastapi import HTTPException
 import uuid
 
@@ -24,7 +24,11 @@ def get_classes(db: Session = Depends(get_db)):
     classes = db.query(Class).all()
     return classes
 
-# POST ======================================================================
+@app.get('/divisions' , response_model = list[DivisionResponse])
+def get_divisions(db: Session = Depends(get_db)):
+    divisions = db.query(Division).all()
+    return divisions
+# POST ========================================================================================
 @app.post("/students", response_model=StudentResponse)
 def create_student(student_data: StudentCreate, db: Session = Depends(get_db)):
     new_student = Student(name=student_data.name)
@@ -49,7 +53,14 @@ def create_class(class_data : ClassCreate, db: Session = Depends(get_db)):
     db.refresh(new_class)
     return new_class
 
-
+@app.post('/divisions', response_model = DivisionResponse)
+def create_division(division_data : DivisionCreate, db: Session = Depends(get_db)):
+    new_division = Division(name = division_data.name)
+    db.add(new_division)
+    db.commit()
+    db.refresh(new_division)
+    return new_division
+# GET id ========================================================================================
 @app.get("/students/{student_id}", response_model=StudentResponse)
 def get_student(student_id: uuid.UUID, db: Session = Depends(get_db)):
     # dùng first ==> trả 1 object hoặc None nếu ko có
@@ -73,6 +84,13 @@ def get_class(class_id: uuid.UUID, db: Session = Depends(get_db)):
     if current_class is None: raise HTTPException(status_code = 404, detail = 'class not found')
     return current_class
 
+@app.get('/divisions/{division_id}', response_model = DivisionResponse)
+def get_division(division_id: uuid.UUID, db: Session = Depends(get_db)):
+    division = db.query(Division).filter(Division.id == division_id).first()
+    if division is None: raise HTTPException(status_code = 404, detail = 'division not found')
+    return division
+
+# PUT = update ========================================================================================
 @app.put("/students/{student_id}", response_model=StudentResponse)
 def update_student(student_id: uuid.UUID, student_data: StudentCreate, db: Session = Depends(get_db)):
     student = db.query(Student).filter(Student.id == student_id).first()
@@ -105,6 +123,17 @@ def update_class(class_id: uuid.UUID , class_data : TeacherCreate , db: Session 
     db.refresh(current_class)
     return current_class
 
+@app.put('/divisions/{division_id}' , response_model= DivisionResponse)
+def update_division(division_id: uuid.UUID , division_data : DivisionCreate , db: Session = Depends(get_db)):
+    division = db.query(Division).filter(Division.id == division_id).first()
+    if division is None: raise HTTPException(status_code = 404, detail = 'division not found')
+    # update
+    division.name = division_data.name
+    db.commit()
+    db.refresh(division)
+    return division
+
+# Delete ========================================================================================
 @app.delete("/students/{student_id}")
 def delete_student(student_id: uuid.UUID, db: Session = Depends(get_db)):
     student = db.query(Student).filter(Student.id == student_id).first()
@@ -133,7 +162,15 @@ def delete_class(class_id : uuid.UUID , db: Session = Depends(get_db)):
     db.commit()
     return {'message': 'class deleted successfully'}
 
+@app.delete('/divisions/{division_id}')
+def delete_division(division_id : uuid.UUID , db: Session = Depends(get_db)):
+    division = db.query(Division).filter(Division.id == division_id ).first()
+    if division is None: raise HTTPException(status_code  = 404, detail = 'division not found ')
+    db.delete(division)
+    db.commit()
+    return {'message': 'division deleted successfully'}
 
+# business logic phức tạp hơn
 @app.post("/enrollments", response_model= EnrollmentResponse)
 def create_enrollment(data: EnrollmentCreate, db: Session = Depends(get_db)):
     # Check 1: student có tồn tại không

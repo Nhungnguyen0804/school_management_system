@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
-
+# -------------------------------------------------------------------------------------------
 class StudentResponse(BaseModel):
     id: uuid.UUID
     name: str
@@ -15,7 +15,7 @@ class StudentResponse(BaseModel):
 class StudentCreate(BaseModel):
     name: str
 
-
+# -------------------------------------------------------------------------------------------
 class TeacherResponse(BaseModel):
     id: uuid.UUID
     name: str
@@ -26,7 +26,7 @@ class TeacherResponse(BaseModel):
 class TeacherCreate(BaseModel):
     name: str
 
-
+# -------------------------------------------------------------------------------------------
 class ClassResponse(BaseModel):
     id : uuid.UUID
     name: str
@@ -35,7 +35,17 @@ class ClassResponse(BaseModel):
 
 class ClassCreate(BaseModel):
     name: str
+# -------------------------------------------------------------------------------------------
+class DivisionResponse(BaseModel):
+    id : uuid.UUID
+    name: str
+    create_at : datetime
+    update_at : datetime
 
+class DivisionCreate(BaseModel):
+    name: str
+
+# -------------------------------------------------------------------------------------------
 class EnrollmentCreate(BaseModel):
     student_id: uuid.UUID
     class_id: uuid.UUID
@@ -48,7 +58,7 @@ class EnrollmentResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
-
+# -------------------------------------------------------------------------------------------
 class TeachCreate(BaseModel):
     teacher_id: uuid.UUID
     class_id: uuid.UUID
@@ -61,3 +71,6 @@ class TeachResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+# -------------------------------------------------------------------------------------------
+
